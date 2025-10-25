@@ -15,6 +15,12 @@ import Levenshtein
 from collections import deque
 from datetime import datetime
 
+try:
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+except Exception:
+    print("Warning: Tesseract executable path not found. OCR will fail.")
+    print("Please edit server.py to set the correct 'pytesseract.pytesseract.tesseract_cmd' path.")
+
 # -----------------------------
 # Small utilities
 # -----------------------------
