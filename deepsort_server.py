@@ -284,6 +284,7 @@ async def ws_endpoint(websocket: WebSocket):
                 "zone": {"x1": int(zone_rect[0]), "y1": int(zone_rect[1]),
                          "x2": int(zone_rect[2]), "y2": int(zone_rect[3])},
                 "tracks": out_tracks,
+                "ocr": ocr_results,  # <--- ADD THIS
                 "latency_ms": int((time.time() - t0) * 1000)
             }
             await websocket.send_text(json.dumps(resp))
