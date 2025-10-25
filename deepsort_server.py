@@ -263,25 +263,18 @@ async def ws_endpoint(websocket: WebSocket):
 
 class OCR:
     """
-    Class for creating a pytesseract OCR process in a dedicated thread
-    with temporal sampling and stability checking.
+    Refactored class to perform OCR processing on-demand per frame.
+    It no longer runs in its own thread.
     """
-    def __init__(self):
-        self.boxes = None                   # Raw data output from tesseract
-        self.text_history = deque(maxlen=10) # Stores last 10 clean text results (approx 2 sec)
-        self.stable_text = ""               # Final output once stability is confirmed
-        self.is_stable = False              # Flag indicating if the menu is stable
-        self.stopped = False
-        self.exchange = None
-        self.language = None
-        self.width, self.height, self.crop_width, self.crop_height = None, None, None, None
+    def __init__(self, history_len=10, grace_period=15, stability_thresh=0.6):
+        self.text_history = deque(maxlen=history_len)
+        self.stable_text = ""
+        self.is_stable = False
+        self.instability_counter = 0
+        self.parsed_boxes = [] # Will store clean box data: [x, y, w, h, conf, word]
 
-        # --- NEW ATTRIBUTES ---
-        # Counter for consecutive unstable frames
-        self.instability_counter = 0 
-        # How many unstable frames to see before we lose the lock (e.g., 15 frames * 0.2s/frame = 3 seconds)
-        self.GRACE_PERIOD_FRAMES = 15 
-        # --- END OF NEW ATTRIBUTES ---
+        self.GRACE_PERIOD_FRAMES = grace_period
+        self.STABILITY_THRESHOLD = stability_thresh
     
     def start(self):
         """Creates a thread targeted at the ocr process"""
