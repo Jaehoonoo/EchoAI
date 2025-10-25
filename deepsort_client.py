@@ -186,8 +186,6 @@ def main():
         cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
-    main()
 
 
 def views(mode: int, confidence: int):
@@ -274,3 +272,7 @@ def draw_ocr_info(img, ocr_data):
         except Exception as e:
             # print(f"Error drawing box: {e}")
             pass
+
+        
+if __name__ == "__main__":
+    main()
