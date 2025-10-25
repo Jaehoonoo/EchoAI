@@ -23,175 +23,109 @@ except Exception:
 
 class OCR:
     """
-    Class for creating a pytesseract OCR process in a dedicated thread
-    with temporal sampling and stability checking.
+    Refactored class to perform OCR processing on-demand per frame.
+    It no longer runs in its own thread.
     """
-    def __init__(self):
-        self.boxes = None                   # Raw data output from tesseract
-        self.text_history = deque(maxlen=10) # Stores last 10 clean text results (approx 2 sec)
-        self.stable_text = ""               # Final output once stability is confirmed
-        self.is_stable = False              # Flag indicating if the menu is stable
-        self.stopped = False
-        self.exchange = None
-        self.language = None
-        self.width, self.height, self.crop_width, self.crop_height = None, None, None, None
+    def __init__(self, history_len=10, grace_period=15, stability_thresh=0.6):
+        self.text_history = deque(maxlen=history_len)
+        self.stable_text = ""
+        self.is_stable = False
+        self.instability_counter = 0
+        self.parsed_boxes = [] # Will store clean box data: [x, y, w, h, conf, word]
 
-        # --- NEW ATTRIBUTES ---
-        # Counter for consecutive unstable frames
-        self.instability_counter = 0 
-        # How many unstable frames to see before we lose the lock (e.g., 15 frames * 0.2s/frame = 3 seconds)
-        self.GRACE_PERIOD_FRAMES = 15 
-        # --- END OF NEW ATTRIBUTES ---
-    
-    def start(self):
-        """Creates a thread targeted at the ocr process"""
-        Thread(target=self.ocr, args=()).start()
-        return self
-
-    def set_exchange(self, video_stream):
-        """Sets the self.exchange attribute with a reference to VideoStream class"""
-        self.exchange = video_stream
-
-    def set_language(self, language):
-        """Sets the self.language parameter"""
-        self.language = language
-
-    def set_dimensions(self, width, height, crop_width, crop_height):
-        """Sets the dimensions attributes"""
-        self.width = width
-        self.height = height
-        self.crop_width = crop_width
-        self.crop_height = crop_height
-
-    def stop_process(self):
-        """Sets the self.stopped attribute to True"""
-        self.stopped = True
+        self.GRACE_PERIOD_FRAMES = grace_period
+        self.STABILITY_THRESHOLD = stability_thresh
 
     def _clean_text(self, raw_text):
         """Removes common OCR junk (spaces, newlines) for better comparison."""
         return " ".join(raw_text.split()).strip()
 
     def _check_stability(self):
-        """
-        Checks if the text results in the history buffer are similar.
-        Includes a grace period to prevent losing stability too easily.
-        """
-        # Need enough samples to compare
         if len(self.text_history) < self.text_history.maxlen:
             self.is_stable = False
             return False
 
-        # Get text samples from the history
-        current_text = self.text_history[0]  # Most recent
-        mid_text = self.text_history[4]      # ~0.8s ago
-        old_text = self.text_history[-1]     # Oldest in buffer (~2s ago)
-        
-        # Calculate Levenshtein similarity ratio
+        current_text = self.text_history[0]
+        mid_text = self.text_history[int(self.text_history.maxlen / 2)]
+        old_text = self.text_history[-1]
+
         ratio1 = Levenshtein.ratio(current_text, mid_text)
         ratio2 = Levenshtein.ratio(current_text, old_text)
 
-        STABILITY_THRESHOLD = 0.6   
-        
-        # --- MODIFIED LOGIC ---
-
-        # 1. If the text IS stable
-        if ratio1 > STABILITY_THRESHOLD and ratio2 > STABILITY_THRESHOLD:
-            # We are stable, so reset the instability counter
+        if ratio1 > self.STABILITY_THRESHOLD and ratio2 > self.STABILITY_THRESHOLD:
             self.instability_counter = 0
-            
-            # Set the stable flag (if not already set)
             if not self.is_stable:
                 self.is_stable = True
-                # Use the longest, most complete text as the result
-                best_text = current_text
-                if len(mid_text) > len(best_text):
-                    best_text = mid_text
-                if len(old_text) > len(best_text):
-                    best_text = old_text
+                # Find the best text from the history
+                best_text = max(self.text_history, key=len)
                 self.stable_text = best_text
-            
             return True
-        
-        # 2. If the text is NOT stable
         else:
-            # Don't give up the lock immediately. Start the grace period counter.
             self.instability_counter += 1
-            
-            # 3. If we are ALREADY in a stable state
             if self.is_stable:
-                # Check if the grace period has been exceeded
                 if self.instability_counter > self.GRACE_PERIOD_FRAMES:
-                    # OK, it's been unstable for 3 seconds. NOW we can lose the lock.
                     self.is_stable = False
                     self.instability_counter = 0
-                    self.text_history.clear() # Clear history to force a full rescan
+                    self.text_history.clear()
                     return False
                 else:
-                    # We are in the grace period.
-                    # LIE and say we are still stable to prevent the UI from flickering.
-                    return True 
-            
-            # 4. If we were never stable to begin with
+                    return True # Lie and say we are stable during grace period
             else:
                 return False
+
+    def process_frame(self, frame: np.ndarray, crop_rect: Tuple[int,int,int,int], lang='eng'):
+        """
+        Runs one cycle of OCR processing on the given frame.
+        """
+        x1, y1, x2, y2 = crop_rect
         
-    def ocr(self):
-        """
-        The core OCR process that runs in a separate thread.
-        Performs temporal sampling and stability checks.
-        """
-        LAST_OCR_TIME = time.time()
-        OCR_INTERVAL = 0.2  # Time in seconds between OCR runs (5 runs/sec)
+        try:
+            cropped_frame = frame[y1:y2, x1:x2]
+            gray = cv2.cvtColor(cropped_frame, cv2.COLOR_BGR_GRAY)
+            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        except Exception as e:
+            # print(f"OCR crop/preprocess error: {e}")
+            self.parsed_boxes = []
+            return # Failed to crop, maybe frame size is wrong
 
-        while not self.stopped:
-            if self.exchange is None:
-                time.sleep(0.1)
-                continue
+        # 1. Get raw string for stability check
+        raw_output = pytesseract.image_to_string(
+            binary, 
+            lang=lang,
+            config='--oem 1 --psm 6'
+        )
+        
+        # 2. Get boxes for visualization
+        boxes_data = pytesseract.image_to_data(binary, lang=lang, config='--oem 1 --psm 6')
 
-            frame = self.exchange.frame
-            if frame is None:
-                continue
-                
-            current_time = time.time()
+        # 3. Store cleaned text for stability checking
+        cleaned_text = self._clean_text(raw_output)
+        if len(cleaned_text) > 5:
+            self.text_history.appendleft(cleaned_text)
 
-            # 1. TEMPORAL SAMPLING: Only run OCR if the time interval has passed
-            if (current_time - LAST_OCR_TIME) >= OCR_INTERVAL:
-                
-                # Pre-processing and Cropping (Optimized)
-                try:
-                    cropped_frame = frame[self.crop_height:(self.height - self.crop_height),
-                                          self.crop_width:(self.width - self.crop_width)]
-                except TypeError:
-                    # Frame dimensions might not be set on the first loop
-                    continue 
-
-                gray = cv2.cvtColor(cropped_frame, cv2.COLOR_BGR2GRAY) 
-                _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
-                # Tesseract processing
-                # Get raw string for stability check
-                raw_output = pytesseract.image_to_string(
-                    binary, 
-                    lang=self.language,
-                    config='--oem 1 --psm 6'  # Use fast LSTM engine, assume single block of text
-                )
-                
-                # Get boxes for visualization
-                self.boxes = pytesseract.image_to_data(binary, lang=self.language, config='--oem 1 --psm 6')
-                
-                # Store the cleaned text for stability checking
-                cleaned_text = self._clean_text(raw_output)
-                if len(cleaned_text) > 5: # Ignore very short/empty results
-                    self.text_history.appendleft(cleaned_text) # Add to the front of the buffer
-
-                # 2. STABILITY CHECK: Check the history for a stable reading
-                self._check_stability()
-                
-                LAST_OCR_TIME = current_time # Update the time of the last successful run
-
-            else:
-                # Give up the processor for a moment to let other threads run
-                time.sleep(0.001)
+        # 4. Run stability check
+        self._check_stability()
+        
+        # 5. Parse boxes and store them
+        self.parsed_boxes = []
+        if boxes_data is not None:
+            for i, box_line in enumerate(boxes_data.splitlines()):
+                box = box_line.split()
+                if i != 0 and len(box) == 12:
+                    try:
+                        conf = int(float(box[10]))
+                        if conf == -1: continue # Skip blocks
+                        
+                        x, y, w, h = int(box[6]), int(box[7]), int(box[8]), int(box[9])
+                        word = box[11]
+                        
+                        # Adjust box coordinates to full frame (add crop offset)
+                        x_full = x + x1
+                        y_full = y + y1
+                        
+                        self.parsed_boxes.append([x_full, y_full, w, h, conf, word])
+                    except ValueError:
+                        pass
 
 
 class Linguist:
