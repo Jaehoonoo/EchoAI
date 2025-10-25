@@ -115,6 +115,13 @@ deepsort = DeepSort(
     embedder_gpu=(DEVICE == 'cuda')             # set True if you want to push embedder to GPU (torch needed)
 )
 
+OCR_INTERVAL = 0.2  # Run OCR every 0.2 seconds (5 FPS)
+OCR_LANGUAGE = 'eng'
+OCR_CROP_PERCENT_X = 0.2 # Crop 20% from left/right
+OCR_CROP_PERCENT_Y = 0.2 # Crop 20% from top/bottom
+LAST_OCR_TIME = 0.0
+ocr_processor = OCR()
+
 # Per-track Kalman store {track_id: (KF, (w,h))}
 track_kf: Dict[int, Tuple[KalmanCV2D, Tuple[float,float]]] = {}
 
