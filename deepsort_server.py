@@ -305,66 +305,35 @@ class OCR:
         return " ".join(raw_text.split()).strip()
 
     def _check_stability(self):
-        """
-        Checks if the text results in the history buffer are similar.
-        Includes a grace period to prevent losing stability too easily.
-        """
-        # Need enough samples to compare
         if len(self.text_history) < self.text_history.maxlen:
             self.is_stable = False
             return False
 
-        # Get text samples from the history
-        current_text = self.text_history[0]  # Most recent
-        mid_text = self.text_history[4]      # ~0.8s ago
-        old_text = self.text_history[-1]     # Oldest in buffer (~2s ago)
-        
-        # Calculate Levenshtein similarity ratio
+        current_text = self.text_history[0]
+        mid_text = self.text_history[int(self.text_history.maxlen / 2)]
+        old_text = self.text_history[-1]
+
         ratio1 = Levenshtein.ratio(current_text, mid_text)
         ratio2 = Levenshtein.ratio(current_text, old_text)
 
-        STABILITY_THRESHOLD = 0.6   
-        
-        # --- MODIFIED LOGIC ---
-
-        # 1. If the text IS stable
-        if ratio1 > STABILITY_THRESHOLD and ratio2 > STABILITY_THRESHOLD:
-            # We are stable, so reset the instability counter
+        if ratio1 > self.STABILITY_THRESHOLD and ratio2 > self.STABILITY_THRESHOLD:
             self.instability_counter = 0
-            
-            # Set the stable flag (if not already set)
             if not self.is_stable:
                 self.is_stable = True
-                # Use the longest, most complete text as the result
-                best_text = current_text
-                if len(mid_text) > len(best_text):
-                    best_text = mid_text
-                if len(old_text) > len(best_text):
-                    best_text = old_text
+                # Find the best text from the history
+                best_text = max(self.text_history, key=len)
                 self.stable_text = best_text
-            
             return True
-        
-        # 2. If the text is NOT stable
         else:
-            # Don't give up the lock immediately. Start the grace period counter.
             self.instability_counter += 1
-            
-            # 3. If we are ALREADY in a stable state
             if self.is_stable:
-                # Check if the grace period has been exceeded
                 if self.instability_counter > self.GRACE_PERIOD_FRAMES:
-                    # OK, it's been unstable for 3 seconds. NOW we can lose the lock.
                     self.is_stable = False
                     self.instability_counter = 0
-                    self.text_history.clear() # Clear history to force a full rescan
+                    self.text_history.clear()
                     return False
                 else:
-                    # We are in the grace period.
-                    # LIE and say we are still stable to prevent the UI from flickering.
-                    return True 
-            
-            # 4. If we were never stable to begin with
+                    return True # Lie and say we are stable during grace period
             else:
                 return False
         
