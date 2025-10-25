@@ -21,6 +21,15 @@ except Exception:
     print("Warning: Tesseract executable path not found. OCR will fail.")
     print("Please edit server.py to set the correct 'pytesseract.pytesseract.tesseract_cmd' path.")
 
+class Linguist:
+    @staticmethod
+    def language_string(language_code):
+        if language_code == 'eng':
+            return "English"
+        elif language_code:
+            return language_code
+        return "English (Default)"
+
 # -----------------------------
 # Small utilities
 # -----------------------------
