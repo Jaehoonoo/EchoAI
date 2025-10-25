@@ -206,3 +206,12 @@ def views(mode: int, confidence: int):
         color = (0, 0, 255)  # Red
 
     return conf_thresh, color
+
+
+def put_crop_box(frame: np.ndarray, width: int, height: int, crop_width: int, crop_height: int, color=(255, 0, 0)):
+    """
+    Simply draws a rectangle over the frame with specified height and width to show a crop zone
+    """
+    cv2.rectangle(frame, (crop_width, crop_height), (width - crop_width, height - crop_height),
+                  color, thickness=2)
+    return frame
