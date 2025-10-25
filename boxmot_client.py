@@ -1,6 +1,7 @@
 # client.py — YOLO + DeepSORT + KF predictions viewer (desktop webcam -> server)
 # Requires: websocket-client, opencv-python, numpy
 import json
+import struct
 import time
 import cv2
 import numpy as np
@@ -13,8 +14,8 @@ except Exception as e:
 # =======================
 # Configuration
 # =======================
-SERVER_WS_URL = "wss://wife-california-hepatitis-revenue.trycloudflare.com/ws"
-CAMERA_INDEX = 1
+SERVER_WS_URL = "wss://mitsubishi-rabbit-skating-attempts.trycloudflare.com/ws"
+CAMERA_INDEX = 0
 TARGET_FPS = 20
 JPEG_QUALITY = 70
 PREVIEW_SIZE = None
@@ -54,7 +55,7 @@ def draw_zone(img, zone):
 
 
 def draw_current_box(img, t):
-    x1, y1, x2, y2 = t["bbox"]
+    x1, y1, x2, y2 = map(int, t["bbox"])
     pr = t.get("priority", "low")
     color = RED if pr == "high" else (YEL if pr == "medium" else GREEN)
     cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
@@ -63,18 +64,9 @@ def draw_current_box(img, t):
 
 
 def draw_predictions(img, preds):
-    # Draw faint boxes and a motion path through predicted centers
-    centers = []
-    for pb in preds:
-        x1, y1, x2, y2 = pb
-        cv2.rectangle(img, (x1, y1), (x2, y2), GRAY, 1)
-        cx = int((x1 + x2) * 0.5)
-        cy = int((y1 + y2) * 0.5)
-        centers.append((cx, cy))
-
-    if len(centers) >= 2:
+    if len(preds) >= 2:
         # Polyline showing motion direction
-        pts = np.array(centers, dtype=np.int32).reshape((-1, 1, 2))
+        pts = np.array(preds, dtype=np.int32).reshape((-1, 1, 2))
         cv2.polylines(img, [pts], isClosed=False, color=CYAN, thickness=2)
 
 
@@ -118,16 +110,18 @@ def main():
             )
             if not ok:
                 continue
-            jpg_bytes = enc.tobytes()
 
-            # Send meta then frame
-            ws.send(json.dumps({"frame_id": frame_id}))
-            ws.send_binary(jpg_bytes)
+            header = struct.pack("<Q", frame_id)
+            jpg_bytes = enc.tobytes()
+            # print(len(jpg_bytes) + len(header))
+
+            ws.send_binary(header + jpg_bytes)
 
             # Receive detection/tracking/predictions
             ws.settimeout(60)
             msg = ws.recv()
             resp = json.loads(msg)
+            # print(resp)
 
             # Copy original for drawing
             vis = frame.copy()
@@ -136,18 +130,13 @@ def main():
             if "zone" in resp and isinstance(resp["zone"], dict):
                 draw_zone(vis, resp["zone"])
 
-            # --- NEW: DRAW OCR INFO ---
-            if "ocr" in resp:
-                draw_ocr_info(vis, resp["ocr"])
-            # --------------------------
-
             tracks = resp.get("tracks", [])
             for t in tracks:
                 label = t.get("label", "obj")
                 if RENDER_CLASSES and label not in RENDER_CLASSES:
                     continue
                 draw_current_box(vis, t)
-                preds = t.get("predictions", [])
+                preds = t.get("pred_path", [])
                 if preds:
                     draw_predictions(vis, preds)
 
@@ -186,93 +175,5 @@ def main():
         cv2.destroyAllWindows()
 
 
-
-
-def views(mode: int, confidence: int):
-    """
-    View modes changes the style of text-boxing in OCR.
-    """
-    conf_thresh = 0
-    color = (0, 0, 255) # Red (Default)
-
-    if mode == 1:
-        conf_thresh = 75     # Only shows boxes with confidence greater than 75
-        color = (0, 255, 0)  # Green
-    elif mode == 2:
-        conf_thresh = 0      # Will show every box
-        color = (0, 255, 0) if confidence >= 50 else (0, 0, 255) # Green/Red
-    elif mode == 3:
-        conf_thresh = 0      # Will show every box
-        color = (int(confidence * 2.55), int(confidence * 2.55), 0) # Blue/Green gradient
-    elif mode == 4:
-        conf_thresh = 0      # Will show every box
-        color = (0, 0, 255)  # Red
-
-    return conf_thresh, color
-
-
-def put_crop_box(frame: np.ndarray, width: int, height: int, crop_width: int, crop_height: int, color=(255, 0, 0)):
-    """
-    Simply draws a rectangle over the frame with specified height and width to show a crop zone
-    """
-    cv2.rectangle(frame, (crop_width, crop_height), (width - crop_width, height - crop_height),
-                  color, thickness=2)
-    return frame
-
-# ... after draw_hud()
-
-def draw_ocr_info(img, ocr_data):
-    """
-    Draws the OCR crop box and any detected text boxes.
-    """
-    if not ocr_data:
-        return # No OCR data
-        
-    # 1. Draw the Crop Box
-    try:
-        x1, y1, x2, y2 = ocr_data.get("crop_rect", [0,0,0,0])
-        is_stable = ocr_data.get("stable", False)
-        
-        box_color = (0, 255, 0) if is_stable else (0, 255, 255) # Green if stable, Yellow if not
-        cv2.rectangle(img, (x1, y1), (x2, y2), box_color, thickness=2)
-        
-        # 2. Draw the Status Text
-        if is_stable:
-            display_text = "STABLE TEXT DETECTED!"
-        else:
-            display_text = "SCANNING..."
-        cv2.putText(img, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.7, box_color, 2)
-        
-        # 3. Draw the Stable Text (if any)
-        stable_text = ocr_data.get("stable_text", "")
-        if is_stable and stable_text:
-             cv2.putText(img, stable_text.split(' ')[0], (x1, y2 + 20), cv2.FONT_HERSHEY_DUPLEX, 0.7, GREEN, 2)
-
-    except Exception as e:
-        print(f"Error drawing OCR rect: {e}")
-
-    # 4. Draw individual word boxes
-    ocr_boxes = ocr_data.get("boxes", [])
-    if not ocr_boxes:
-        return
-        
-    for box_info in ocr_boxes:
-        try:
-            x, y, w, h, conf, word = box_info
-            
-            # Get color based on confidence (using your 'views' logic)
-            if conf > 75:
-                color = GREEN
-            elif conf > 50:
-                color = YEL
-            else:
-                color = RED
-            
-            cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness=1)
-        except Exception as e:
-            # print(f"Error drawing box: {e}")
-            pass
-
-        
 if __name__ == "__main__":
     main()
