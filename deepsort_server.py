@@ -10,6 +10,11 @@ from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort  # <-- DeepSORT
 import torch
 
+import pytesseract
+import Levenshtein
+from collections import deque
+from datetime import datetime
+
 # -----------------------------
 # Small utilities
 # -----------------------------
