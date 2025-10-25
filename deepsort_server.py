@@ -617,3 +617,9 @@ def views(mode: int, confidence: int):
         color = (0, 0, 255)  # Red
 
     return conf_thresh, color
+
+
+if __name__ == "__main__":
+    import uvicorn
+    # You can change host="0.0.0.0" to "127.0.0.1" (localhost) if you want
+    uvicorn.run(app, host="0.0.0.0", port=8000)
