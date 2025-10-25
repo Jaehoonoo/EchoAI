@@ -34,65 +34,79 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 def root():  
     return "OCR Streaming Server is running. Connect via WebSocket at /ws"  
   
-@app.websocket("/ws")  
-async def ws_endpoint(websocket: WebSocket):  
-    """Protocol: client sends TEXT JSON metadata followed by BINARY JPEG frame.  
-       Server returns TEXT JSON with extracted text for that frame_id.  
-       TEXT meta example: {"frame_id": 123}  
-       Response example: {"frame_id": 123, "text": "extracted text here"}"""  
-    await websocket.accept()  
-    try:  
-        while True:  
-            try:  
-                meta_text = await websocket.receive_text()  
-            except WebSocketDisconnect:  
-                break  
-            except Exception:  
-                # If client sent binary when we expected text, consume and continue  
-                data_maybe = await websocket.receive()  
-                continue  
-  
-            try:  
-                meta = json.loads(meta_text)  
-            except json.JSONDecodeError:  
-                await websocket.send_text(json.dumps({"error": "invalid_meta_json"}))  
-                continue  
-  
-            frame_id = meta.get("frame_id", None)  
-  
-            # Receive the binary JPEG frame  
-            msg = await websocket.receive()  
-            if "bytes" not in msg:  
-                await websocket.send_text(json.dumps({"frame_id": frame_id, "error": "expected_binary_frame"}))  
-                continue  
-  
-            jpg_bytes = msg["bytes"]  
-            npbuf = np.frombuffer(jpg_bytes, dtype=np.uint8)  
-            frame = cv2.imdecode(npbuf, cv2.IMREAD_COLOR)  
-            if frame is None:  
-                await websocket.send_text(json.dumps({"frame_id": frame_id, "error": "decode_failed"}))  
-                continue  
-  
-            # Convert BGR (OpenCV) to RGB (PIL)  
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  
-            pil_image = Image.fromarray(frame_rgb)  
-  
-            # Run OCR  
-            t0 = time.time()  
-            extracted_text = pytesseract.image_to_string(pil_image)  
-            latency_ms = int((time.time() - t0) * 1000)  
-  
-            await websocket.send_text(json.dumps({  
-                "frame_id": frame_id,  
-                "text": extracted_text.strip(),  
-                "latency_ms": latency_ms  
-            }))  
-    except WebSocketDisconnect:  
-        pass  
-    except Exception as e:  
-        # Best-effort error message to client  
-        try:  
-            await websocket.send_text(json.dumps({"error": str(e)}))  
-        except Exception:  
-            pass  
+# ocr_server.py
+
+@app.websocket("/ws")
+async def ws_endpoint(websocket: WebSocket):
+    """Protocol: client sends TEXT JSON metadata followed by BINARY JPEG frame.
+       Server returns TEXT JSON with extracted text for that frame_id.
+
+       TEXT meta example: {"frame_id": 123, "do_ocr": true}
+       Response (OCR): {"frame_id": 123, "text": "extracted text", "latency_ms": 120}
+       Response (No OCR): {"frame_id": 123, "text": null, "latency_ms": 0}"""
+    await websocket.accept()
+    try:
+        while True:
+            try:
+                meta_text = await websocket.receive_text()
+            except WebSocketDisconnect:
+                break
+            except Exception:
+                data_maybe = await websocket.receive()
+                continue
+
+            try:
+                meta = json.loads(meta_text)
+            except json.JSONDecodeError:
+                await websocket.send_text(json.dumps({"error": "invalid_meta_json"}))
+                continue
+
+            frame_id = meta.get("frame_id", None)
+            # Check for the new "do_ocr" flag
+            should_ocr = meta.get("do_ocr", False)
+
+            # Receive the binary JPEG frame
+            msg = await websocket.receive()
+            if "bytes" not in msg:
+                await websocket.send_text(json.dumps({"frame_id": frame_id, "error": "expected_binary_frame"}))
+                continue
+
+            if not should_ocr:
+                # If OCR is not requested, just send an empty ack and skip processing
+                await websocket.send_text(json.dumps({
+                    "frame_id": frame_id,
+                    "text": None,  # Send null to signal no OCR was run
+                    "latency_ms": 0
+                }))
+                continue
+
+            # --- Only run this code if should_ocr is True ---
+            jpg_bytes = msg["bytes"]
+            npbuf = np.frombuffer(jpg_bytes, dtype=np.uint8)
+            frame = cv2.imdecode(npbuf, cv2.IMREAD_COLOR)
+            if frame is None:
+                await websocket.send_text(json.dumps({"frame_id": frame_id, "error": "decode_failed"}))
+                continue
+
+            # Convert BGR (OpenCV) to RGB (PIL)
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            pil_image = Image.fromarray(frame_rgb)
+
+            # Run OCR
+            t0 = time.time()
+            extracted_text = pytesseract.image_to_string(pil_image)
+            latency_ms = int((time.time() - t0) * 1000)
+
+            await websocket.send_text(json.dumps({
+                "frame_id": frame_id,
+                "text": extracted_text.strip(),
+                "latency_ms": latency_ms
+            }))
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_text(json.dumps({"error": str(e)}))
+        except Exception:
+            pass
         raise
