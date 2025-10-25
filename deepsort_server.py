@@ -432,3 +432,26 @@ class OCR:
             else:
                 # Give up the processor for a moment to let other threads run
                 time.sleep(0.001)
+
+
+def views(mode: int, confidence: int):
+    """
+    View modes changes the style of text-boxing in OCR.
+    """
+    conf_thresh = 0
+    color = (0, 0, 255) # Red (Default)
+
+    if mode == 1:
+        conf_thresh = 75     # Only shows boxes with confidence greater than 75
+        color = (0, 255, 0)  # Green
+    elif mode == 2:
+        conf_thresh = 0      # Will show every box
+        color = (0, 255, 0) if confidence >= 50 else (0, 0, 255) # Green/Red
+    elif mode == 3:
+        conf_thresh = 0      # Will show every box
+        color = (int(confidence * 2.55), int(confidence * 2.55), 0) # Blue/Green gradient
+    elif mode == 4:
+        conf_thresh = 0      # Will show every box
+        color = (0, 0, 255)  # Red
+
+    return conf_thresh, color
