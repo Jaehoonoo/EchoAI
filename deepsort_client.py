@@ -13,11 +13,11 @@ except Exception as e:
 # =======================
 # Configuration
 # =======================
-SERVER_WS_URL = "wss://dressed-strict-nitrogen-clearance.trycloudflare.com/ws"
-CAMERA_INDEX = 0
+SERVER_WS_URL = "wss://comp-areas-favourites-wanted.trycloudflare.com/ws"
+CAMERA_INDEX = 1
 TARGET_FPS = 15
 JPEG_QUALITY = 70
-PREVIEW_SIZE = (960, 540)  # resize display window (None to disable)
+PREVIEW_SIZE = None  # resize display window (None to disable)
 
 # Optional: only render these classes (None = all)
 RENDER_CLASSES = None  # e.g., {"person", "car"}
@@ -183,3 +183,26 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def views(mode: int, confidence: int):
+    """
+    View modes changes the style of text-boxing in OCR.
+    """
+    conf_thresh = 0
+    color = (0, 0, 255) # Red (Default)
+
+    if mode == 1:
+        conf_thresh = 75     # Only shows boxes with confidence greater than 75
+        color = (0, 255, 0)  # Green
+    elif mode == 2:
+        conf_thresh = 0      # Will show every box
+        color = (0, 255, 0) if confidence >= 50 else (0, 0, 255) # Green/Red
+    elif mode == 3:
+        conf_thresh = 0      # Will show every box
+        color = (int(confidence * 2.55), int(confidence * 2.55), 0) # Blue/Green gradient
+    elif mode == 4:
+        conf_thresh = 0      # Will show every box
+        color = (0, 0, 255)  # Red
+
+    return conf_thresh, color
