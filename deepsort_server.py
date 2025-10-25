@@ -395,6 +395,60 @@ class OCR:
                 # Give up the processor for a moment to let other threads run
                 time.sleep(0.001)
 
+    def process_frame(self, frame: np.ndarray, crop_rect: Tuple[int,int,int,int], lang='eng'):
+        """
+        Runs one cycle of OCR processing on the given frame.
+        """
+        x1, y1, x2, y2 = crop_rect
+        
+        try:
+            cropped_frame = frame[y1:y2, x1:x2]
+            gray = cv2.cvtColor(cropped_frame, cv2.COLOR_BGR_GRAY)
+            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        except Exception as e:
+            # print(f"OCR crop/preprocess error: {e}")
+            self.parsed_boxes = []
+            return # Failed to crop, maybe frame size is wrong
+
+        # 1. Get raw string for stability check
+        raw_output = pytesseract.image_to_string(
+            binary, 
+            lang=lang,
+            config='--oem 1 --psm 6'
+        )
+        
+        # 2. Get boxes for visualization
+        boxes_data = pytesseract.image_to_data(binary, lang=lang, config='--oem 1 --psm 6')
+
+        # 3. Store cleaned text for stability checking
+        cleaned_text = self._clean_text(raw_output)
+        if len(cleaned_text) > 5:
+            self.text_history.appendleft(cleaned_text)
+
+        # 4. Run stability check
+        self._check_stability()
+        
+        # 5. Parse boxes and store them (using logic from your 'put_ocr_boxes')
+        self.parsed_boxes = []
+        if boxes_data is not None:
+            for i, box_line in enumerate(boxes_data.splitlines()):
+                box = box_line.split()
+                if i != 0 and len(box) == 12:
+                    try:
+                        conf = int(float(box[10]))
+                        if conf == -1: continue # Skip blocks
+                        
+                        x, y, w, h = int(box[6]), int(box[7]), int(box[8]), int(box[9])
+                        word = box[11]
+                        
+                        # Adjust box coordinates to full frame (add crop offset)
+                        x_full = x + x1
+                        y_full = y + y1
+                        
+                        self.parsed_boxes.append([x_full, y_full, w, h, conf, word])
+                    except ValueError:
+                        pass
+
 
 def views(mode: int, confidence: int):
     """
