@@ -155,9 +155,40 @@ async def ws_endpoint(websocket: WebSocket):
                 await websocket.send_text(json.dumps({"frame_id": frame_id, "error": "decode_failed"}))
                 continue
 
+           # ...
             h, w = frame.shape[:2]
+            
+            # --- NEW: RUN OCR ---
+            global LAST_OCR_TIME
+            ocr_results = {
+                "stable": ocr_processor.is_stable,
+                "stable_text": ocr_processor.stable_text,
+                "boxes": [],
+                "crop_rect": [0,0,0,0]
+            }
+            
+            # Define the crop rectangle in pixels
+            cx1 = int(w * OCR_CROP_PERCENT_X)
+            cx2 = int(w * (1.0 - OCR_CROP_PERCENT_X))
+            cy1 = int(h * OCR_CROP_PERCENT_Y)
+            cy2 = int(h * (1.0 - OCR_CROP_PERCENT_Y))
+            crop_rect_pixels = (cx1, cy1, cx2, cy2)
+            ocr_results["crop_rect"] = crop_rect_pixels # Send to client for drawing
+            
+            current_time = time.time()
+            if (current_time - LAST_OCR_TIME) >= OCR_INTERVAL:
+                ocr_processor.process_frame(frame, crop_rect_pixels, lang=OCR_LANGUAGE)
+                LAST_OCR_TIME = current_time
+
+            # Get the latest results (even if we didn't run this frame)
+            ocr_results["stable"] = ocr_processor.is_stable
+            ocr_results["stable_text"] = ocr_processor.stable_text
+            ocr_results["boxes"] = ocr_processor.parsed_boxes
+            # --- END OF OCR ---
+            
             t0 = time.time()
             yolo_out = model.predict(source=frame, imgsz=640, conf=0.25, verbose=False)
+            # ...
 
             dets = []  # each: [ [x1,y1,x2,y2], conf, class_id ]
             names = None
