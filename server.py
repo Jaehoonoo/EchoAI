@@ -12,6 +12,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+import time, logging
+
 try:
     from ultralytics import YOLO
 except Exception as e:
@@ -29,7 +31,7 @@ app.add_middleware(
 )
 
 # Load a small model by default; change to yolov8s.pt or a custom .pt if desired
-MODEL_PATH = "yolov8n.pt"
+MODEL_PATH = "yolo11n.pt"
 model = YOLO(MODEL_PATH)
 
 @app.get("/", response_class=PlainTextResponse)
@@ -76,7 +78,10 @@ async def ws_endpoint(websocket: WebSocket):
                 continue
 
             # Run YOLO inference
+            t0 = time.time()
             results = model.predict(source=frame, imgsz=640, conf=0.25, verbose=False)
+            logging.info("Inference %.2f ms, frame_id=%s, shape=%s",
+             (time.time()-t0)*1000, frame_id, frame.shape)
 
             detections: List[Dict[str, Any]] = []
             for r in results:
@@ -109,3 +114,4 @@ async def ws_endpoint(websocket: WebSocket):
         except Exception:
             pass
         raise
+
