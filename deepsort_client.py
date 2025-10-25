@@ -13,7 +13,7 @@ except Exception as e:
 # =======================
 # Configuration
 # =======================
-SERVER_WS_URL = "wss://comp-areas-favourites-wanted.trycloudflare.com/ws"
+SERVER_WS_URL = "ws://127.0.0.1:8000/ws"
 CAMERA_INDEX = 1
 TARGET_FPS = 15
 JPEG_QUALITY = 70
