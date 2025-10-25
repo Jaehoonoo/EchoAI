@@ -215,3 +215,57 @@ def put_crop_box(frame: np.ndarray, width: int, height: int, crop_width: int, cr
     cv2.rectangle(frame, (crop_width, crop_height), (width - crop_width, height - crop_height),
                   color, thickness=2)
     return frame
+
+# ... after draw_hud()
+
+def draw_ocr_info(img, ocr_data):
+    """
+    Draws the OCR crop box and any detected text boxes.
+    """
+    if not ocr_data:
+        return # No OCR data
+        
+    # 1. Draw the Crop Box
+    try:
+        x1, y1, x2, y2 = ocr_data.get("crop_rect", [0,0,0,0])
+        is_stable = ocr_data.get("stable", False)
+        
+        box_color = (0, 255, 0) if is_stable else (0, 255, 255) # Green if stable, Yellow if not
+        cv2.rectangle(img, (x1, y1), (x2, y2), box_color, thickness=2)
+        
+        # 2. Draw the Status Text
+        if is_stable:
+            display_text = "STABLE TEXT DETECTED!"
+        else:
+            display_text = "SCANNING..."
+        cv2.putText(img, display_text, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.7, box_color, 2)
+        
+        # 3. Draw the Stable Text (if any)
+        stable_text = ocr_data.get("stable_text", "")
+        if is_stable and stable_text:
+             cv2.putText(img, stable_text.split(' ')[0], (x1, y2 + 20), cv2.FONT_HERSHEY_DUPLEX, 0.7, GREEN, 2)
+
+    except Exception as e:
+        print(f"Error drawing OCR rect: {e}")
+
+    # 4. Draw individual word boxes
+    ocr_boxes = ocr_data.get("boxes", [])
+    if not ocr_boxes:
+        return
+        
+    for box_info in ocr_boxes:
+        try:
+            x, y, w, h, conf, word = box_info
+            
+            # Get color based on confidence (using your 'views' logic)
+            if conf > 75:
+                color = GREEN
+            elif conf > 50:
+                color = YEL
+            else:
+                color = RED
+            
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness=1)
+        except Exception as e:
+            # print(f"Error drawing box: {e}")
+            pass
