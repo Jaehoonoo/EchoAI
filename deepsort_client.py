@@ -136,6 +136,11 @@ def main():
             if "zone" in resp and isinstance(resp["zone"], dict):
                 draw_zone(vis, resp["zone"])
 
+            # --- NEW: DRAW OCR INFO ---
+            if "ocr" in resp:
+                draw_ocr_info(vis, resp["ocr"])
+            # --------------------------
+
             tracks = resp.get("tracks", [])
             for t in tracks:
                 label = t.get("label", "obj")
