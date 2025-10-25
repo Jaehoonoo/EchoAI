@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>YOLO WebSocket Camera Client</title>
+		<style>
+			body {
+				font-family: system-ui, sans-serif;
+				margin: 16px;
+			}
+			#preview {
+				width: 320px;
+				border: 1px solid #ccc;
+			}
+			#status {
+				margin-top: 8px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>YOLO WebSocket Camera Client</h1>
+		<label
+			>Server WS URL:
+			<input id="wsurl" size="40" value="ws://127.0.0.1:8000/ws"
+		/></label>
+		<button id="connectBtn">Connect</button>
+		<button id="disconnectBtn" disabled>Disconnect</button>
+		<div id="status">Disconnected</div>
+		<video id="video" playsinline autoplay muted></video>
+		<canvas id="canvas" width="320" height="240" style="display: none"></canvas>
+		<canvas id="preview" width="320" height="240"></canvas>
+
+		<script>
+			const video = document.getElementById('video');
+			const canvas = document.getElementById('canvas');
+			const preview = document.getElementById('preview');
+			const ctx = canvas.getContext('2d');
+			const pctx = preview.getContext('2d');
+			const statusEl = document.getElementById('status');
+			const wsUrlInput = document.getElementById('wsurl');
+			const connectBtn = document.getElementById('connectBtn');
+			const disconnectBtn = document.getElementById('disconnectBtn');
+
+			let ws = null;
+			let frameId = 0;
+			const targetFPS = 10;
+			const jpegQuality = 0.7; // 0..1
+
+			async function startCamera() {
+				const stream = await navigator.mediaDevices.getUserMedia({
+					video: { facingMode: 'environment', width: 640, height: 480 },
+					audio: false,
+				});
+				video.srcObject = stream;
+				await video.play();
+				canvas.width = video.videoWidth || 640;
+				canvas.height = video.videoHeight || 480;
+				preview.width = canvas.width;
+				preview.height = canvas.height;
+			}
+
+			function sendFrame() {
+				if (!ws || ws.readyState !== WebSocket.OPEN) return;
+				// Draw from video to canvas
+				ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+				// For local user preview
+				pctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+				// Send meta then frame blob
+				const meta = JSON.stringify({ frame_id: frameId });
+				ws.send(meta);
+
+				canvas.toBlob(
+					async (blob) => {
+						if (!blob) return;
+						ws.send(blob);
+						frameId++;
+					},
+					'image/jpeg',
+					jpegQuality
+				);
+			}
+
+			function scheduleLoop() {
+				const interval = 1000 / targetFPS;
+				return setInterval(sendFrame, interval);
+			}
+
+			let loopHandle = null;
+
+			connectBtn.onclick = async () => {
+				try {
+					await startCamera();
+				} catch (err) {
+					statusEl.textContent = 'Camera error: ' + err;
+					return;
+				}
+
+				ws = new WebSocket(wsUrlInput.value);
+				ws.binaryType = 'arraybuffer';
+
+				ws.onopen = () => {
+					statusEl.textContent = 'Connected';
+					connectBtn.disabled = true;
+					disconnectBtn.disabled = false;
+					loopHandle = scheduleLoop();
+				};
+				ws.onmessage = (ev) => {
+					try {
+						const data = JSON.parse(ev.data);
+						// You can optionally draw server-returned annotations here by overlaying on preview.
+						// For hackathon simplicity, we only preview raw camera.
+						// Example: draw boxes if data.detections exists.
+						if (data && Array.isArray(data.detections)) {
+							pctx.strokeStyle = 'lime';
+							pctx.lineWidth = 2;
+							pctx.font = '14px system-ui';
+							data.detections.forEach((d) => {
+								pctx.strokeRect(d.x1, d.y1, d.x2 - d.x1, d.y2 - d.y1);
+								pctx.fillStyle = 'black';
+								const label = `${d.label} ${d.conf.toFixed(2)}`;
+								pctx.fillText(label, d.x1 + 4, Math.max(12, d.y1 - 4));
+							});
+						}
+					} catch (e) {
+						// ignore non-JSON or errors
+					}
+				};
+				ws.onclose = () => {
+					statusEl.textContent = 'Disconnected';
+					connectBtn.disabled = false;
+					disconnectBtn.disabled = true;
+					if (loopHandle) clearInterval(loopHandle);
+				};
+				ws.onerror = (err) => {
+					statusEl.textContent = 'WebSocket error';
+				};
+			};
+
+			disconnectBtn.onclick = () => {
+				if (ws) ws.close();
+			};
+		</script>
+	</body>
+</html>

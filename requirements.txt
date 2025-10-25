@@ -1,0 +1,13 @@
+
+# requirements.txt
+# Server
+fastapi
+uvicorn[standard]
+ultralytics
+opencv-python
+numpy
+
+# Python client
+websocket-client
+opencv-python
+numpy
