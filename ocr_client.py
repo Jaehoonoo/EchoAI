@@ -7,6 +7,8 @@ import os
 import pvorca
 import numpy as np  # <-- 1. ADD THIS IMPORT
 
+import re # <-- 1. Import the regex library for sanitizing
+
 from dotenv import load_dotenv
 
 # --- ADD THIS IMPORT ---
@@ -24,6 +26,39 @@ orca = pvorca.create(access_key=ACCESS_KEY)
 # --- ADD THIS LINE ---
 SAMPLE_RATE = orca.sample_rate
 # ---------------------
+
+# --- 2. GET THE LIST OF VALID CHARACTERS ---
+# We'll use this to clean the text
+VALID_CHARS_SET = set(orca.valid_characters)
+# -------------------------------------------
+
+# --- 3. ADD A SANITIZATION FUNCTION ---
+def sanitize_text(text: str) -> str:
+    """
+    Removes any characters not supported by Orca and normalizes whitespace.
+    """
+    # Keep only valid characters
+    filtered_chars = [
+        char for char in text if char in VALID_CHARS_SET
+    ]
+    
+    # --- FIX: Also remove special pronunciation chars ---
+    # These chars ({, }, |) are "valid" but will cause a crash
+    # if they appear without the proper {word|pronunciation} format.
+    safe_chars = [
+        char for char in filtered_chars if char not in ('{', '}', '|')
+    ]
+    # ---------------------------------------------------
+    
+    # Join them back into a string
+    filtered_text = "".join(safe_chars) # Use safe_chars now
+    
+    # Optional: Collapse multiple spaces/newlines into a single space
+    # This prevents weird pauses from janky OCR output
+    normalized_text = re.sub(r'\s+', ' ', filtered_text).strip()
+    
+    return normalized_text
+# --------------------------------------
 
 try:
     import websocket  # from websocket-client
@@ -134,33 +169,38 @@ def main():
             msg = ws.recv()
             resp = json.loads(msg)
 
-            # Update text only if we get a valid text response
             current_text = ""
             if "text" in resp:
                 received_text = resp.get("text")
                 current_text = received_text if received_text is not None else ""
                 last_latency = resp.get("latency_ms", 0)
             
-            # --- TODO COMPLETED: Play audio if text is new and valid ---
-            # This block will now run correctly
-            if ocr_enabled and current_text and current_text != last_text:
-                print(f"Synthesizing: {current_text}")
-                pcm, alignments = orca.synthesize(text=current_text)
-                pcm_int16 = np.array(pcm).astype(np.int16)
-                sd.stop()  # Stop previous playback
-                sd.play(pcm_int16, samplerate=SAMPLE_RATE)
-            # ---------------------------------------------------------
+            # --- 4. SANITIZE THE TEXT BEFORE USING IT ---
+            sanitized_text = sanitize_text(current_text)
             
-            last_text = current_text # Update last_text for the next loop
+            # This block will now run correctly
+            # Check against the *sanitized* text
+            if ocr_enabled and sanitized_text and sanitized_text != last_text:
+                
+                # Use the clean text for synthesis
+                print(f"Synthesizing: {sanitized_text}")
+                pcm, alignments = orca.synthesize(text=sanitized_text)
+                
+                pcm_int16 = np.array(pcm).astype(np.int16)
+                
+                sd.stop()
+                sd.play(pcm_int16, samplerate=SAMPLE_RATE)
+            
+            # Store the *sanitized* text for the next loop's comparison
+            last_text = sanitized_text
 
             # --- LOGIC FIX: SET FLAG TO FALSE *HERE* ---
-            # This runs after send, receive, and play, completing the cycle.
             if ocr_enabled:
                 ocr_enabled = False
-            # -----------------------------------------
             
-            # Draw overlay with extracted text
-            vis = draw_text_overlay(frame.copy(), last_text, last_latency)
+            # Draw overlay with the *original* (unsanitized) text
+            # This way, the user sees what the OCR *actually* read
+            vis = draw_text_overlay(frame.copy(), current_text, last_latency)
             
             # Also draw the current OCR status
             status_text = f"OCR: {'PENDING' if ocr_enabled else 'OFF'} (Press 'o')"
