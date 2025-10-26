@@ -31,8 +31,12 @@ struct Track: Codable, Identifiable {
     let priority: String?
     let predPath: [[Double]]? // Changed from 'predictions'
     
+    let vx: Double?
+    let vy: Double?
+    let direction: String?
+    
     enum CodingKeys: String, CodingKey {
-        case id, bbox, label, conf, priority
+        case id, bbox, label, conf, priority, vx, vy, direction
         case predPath = "pred_path" // Maps 'pred_path' from JSON to 'predPath'
     }
 }

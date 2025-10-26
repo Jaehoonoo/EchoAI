@@ -6,7 +6,7 @@ class WebSocketManager: ObservableObject {
     private var session = URLSession(configuration: .default)
     
     // Configuration
-    private let serverURL = URL(string: "wss://reviewer-dame-ciao-became.trycloudflare.com/ws")!
+    private let serverURL = URL(string: "wss://serve-gorgeous-civil-testimony.trycloudflare.com/ws")!
     private var frameId: Int = 0
     
     // NEW: This "lock" prevents us from sending a new frame until the
