@@ -14,14 +14,14 @@ except Exception as e:
 # =======================
 # Configuration
 # =======================
-SERVER_WS_URL = "wss://mitsubishi-rabbit-skating-attempts.trycloudflare.com/ws"
+SERVER_WS_URL = "wss://retain-poor-found-upload.trycloudflare.com/ws"
 CAMERA_INDEX = 0
 TARGET_FPS = 20
 JPEG_QUALITY = 70
 PREVIEW_SIZE = None
 
 # Optional: only render these classes (None = all)
-RENDER_CLASSES = None  # e.g., {"person", "car"}
+RENDER_CLASSES = None  # e.g., {"   person", "car"}
 
 # =======================
 # Drawing utilities
@@ -82,10 +82,6 @@ def main():
     cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
         raise RuntimeError("Could not open webcam")
-
-    # Optional: try to set a reasonable capture size (some webcams ignore this)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
     ws = websocket.create_connection(
         SERVER_WS_URL, timeout=30, ping_interval=20, ping_timeout=10
