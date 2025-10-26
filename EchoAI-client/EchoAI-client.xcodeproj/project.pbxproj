@@ -12,6 +12,9 @@
 		340A57922EAD436100DBCFB7 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 340A57912EAD436100DBCFB7 /* AVFoundation.framework */; };
 		340A579A2EAD492300DBCFB7 /* CoreImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 340A57992EAD492300DBCFB7 /* CoreImage.framework */; };
 		340A57A02EAD9B1500DBCFB7 /* Combine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 340A579F2EAD9B1500DBCFB7 /* Combine.framework */; };
+		341A90702EADFD94009D4BAB /* Orca in Frameworks */ = {isa = PBXBuildFile; productRef = 341A906F2EADFD94009D4BAB /* Orca */; };
+		341A90732EAE0200009D4BAB /* Cheetah in Frameworks */ = {isa = PBXBuildFile; productRef = 341A90722EAE0200009D4BAB /* Cheetah */; };
+		34B193B22EAE03FD001CFB78 /* Porcupine in Frameworks */ = {isa = PBXBuildFile; productRef = 34B193B12EAE03FD001CFB78 /* Porcupine */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,6 +43,7 @@
 		340A57912EAD436100DBCFB7 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		340A57992EAD492300DBCFB7 /* CoreImage.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreImage.framework; path = System/Library/Frameworks/CoreImage.framework; sourceTree = SDKROOT; };
 		340A579F2EAD9B1500DBCFB7 /* Combine.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Combine.framework; path = System/Library/Frameworks/Combine.framework; sourceTree = SDKROOT; };
+		343B0FFC2EADFA8000E0F360 /* Python3.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Python3.framework; path = Library/Frameworks/Python3.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -66,10 +70,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				340A57A02EAD9B1500DBCFB7 /* Combine.framework in Frameworks */,
+				341A90732EAE0200009D4BAB /* Cheetah in Frameworks */,
 				340A57902EAD435500DBCFB7 /* SceneKit.framework in Frameworks */,
+				34B193B22EAE03FD001CFB78 /* Porcupine in Frameworks */,
 				340A577C2EAD430600DBCFB7 /* ARKit.framework in Frameworks */,
 				340A57922EAD436100DBCFB7 /* AVFoundation.framework in Frameworks */,
 				340A579A2EAD492300DBCFB7 /* CoreImage.framework in Frameworks */,
+				341A90702EADFD94009D4BAB /* Orca in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -114,6 +121,7 @@
 		340A577A2EAD430400DBCFB7 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				343B0FFC2EADFA8000E0F360 /* Python3.framework */,
 				340A579F2EAD9B1500DBCFB7 /* Combine.framework */,
 				340A57992EAD492300DBCFB7 /* CoreImage.framework */,
 				340A57912EAD436100DBCFB7 /* AVFoundation.framework */,
@@ -143,6 +151,9 @@
 			);
 			name = "EchoAI-client";
 			packageProductDependencies = (
+				341A906F2EADFD94009D4BAB /* Orca */,
+				341A90722EAE0200009D4BAB /* Cheetah */,
+				34B193B12EAE03FD001CFB78 /* Porcupine */,
 			);
 			productName = "EchoAI-client";
 			productReference = 340A57502EAD42D900DBCFB7 /* EchoAI-client.app */;
@@ -226,6 +237,11 @@
 			);
 			mainGroup = 340A57472EAD42D800DBCFB7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				341A906E2EADFD94009D4BAB /* XCRemoteSwiftPackageReference "orca" */,
+				341A90712EAE0200009D4BAB /* XCRemoteSwiftPackageReference "cheetah" */,
+				341A90742EAE0225009D4BAB /* XCRemoteSwiftPackageReference "porcupine" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 340A57512EAD42D900DBCFB7 /* Products */;
 			projectDirPath = "";
@@ -433,6 +449,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app uses bluetooth to connect to audio devices for spatial audio feedback.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera for LiDAR depth sensing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app uses microphone for speech-to-text.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -468,6 +485,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app uses bluetooth to connect to audio devices for spatial audio feedback.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera for LiDAR depth sensing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app uses microphone for speech-to-text.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -615,6 +633,51 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		341A906E2EADFD94009D4BAB /* XCRemoteSwiftPackageReference "orca" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Picovoice/orca.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+		341A90712EAE0200009D4BAB /* XCRemoteSwiftPackageReference "cheetah" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Picovoice/cheetah.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.3.0;
+			};
+		};
+		341A90742EAE0225009D4BAB /* XCRemoteSwiftPackageReference "porcupine" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Picovoice/porcupine.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		341A906F2EADFD94009D4BAB /* Orca */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 341A906E2EADFD94009D4BAB /* XCRemoteSwiftPackageReference "orca" */;
+			productName = Orca;
+		};
+		341A90722EAE0200009D4BAB /* Cheetah */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 341A90712EAE0200009D4BAB /* XCRemoteSwiftPackageReference "cheetah" */;
+			productName = Cheetah;
+		};
+		34B193B12EAE03FD001CFB78 /* Porcupine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 341A90742EAE0225009D4BAB /* XCRemoteSwiftPackageReference "porcupine" */;
+			productName = Porcupine;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 340A57482EAD42D900DBCFB7 /* Project object */;
 }

@@ -1,0 +1,42 @@
+{
+  "originHash" : "2cff74819c5c8abc4780b136afdea7acbda36a4c10ba352fcc3c73f4b42373c4",
+  "pins" : [
+    {
+      "identity" : "cheetah",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Picovoice/cheetah.git",
+      "state" : {
+        "revision" : "b402b7fb533d9c3f0a590635277b229d11251986",
+        "version" : "2.3.0"
+      }
+    },
+    {
+      "identity" : "ios-voice-processor",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Picovoice/ios-voice-processor.git",
+      "state" : {
+        "revision" : "083c02aed9a890400d647fd357f8a505bf672f58",
+        "version" : "1.2.0"
+      }
+    },
+    {
+      "identity" : "orca",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Picovoice/orca.git",
+      "state" : {
+        "revision" : "8a9dac319031c62bae49c9b63f71cc97c36e6956",
+        "version" : "1.2.0"
+      }
+    },
+    {
+      "identity" : "porcupine",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Picovoice/porcupine.git",
+      "state" : {
+        "revision" : "08829fb824adee8aec1eb96c235c59f6cabc144a",
+        "version" : "3.0.4"
+      }
+    }
+  ],
+  "version" : 3
+}

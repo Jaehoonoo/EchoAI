@@ -20,6 +20,8 @@ struct ARViewContainer: UIViewRepresentable {
 
     let audioManager: SpatialAudioManager
     let webSocketManager: WebSocketManager // NEW: Accept the manager
+//    let ocrWebSocketManager: OCRWebSocketManager // NEW
+//    let voiceViewModel: VoiceViewModel // NEW
     
     @Binding var imageResolution: CGSize
     
@@ -63,14 +65,19 @@ struct ARViewContainer: UIViewRepresentable {
     
     func updateUIView(_ uiView: ARSCNView, context: Context) {}
     
-    func makeCoordinator() -> Coordinator {        
-        Coordinator(self, audioManager: audioManager, webSocketManager: webSocketManager)
+    func makeCoordinator() -> Coordinator {
+        // NEW: Pass the new managers to the Coordinator
+        Coordinator(self,
+                    audioManager: audioManager,
+                    webSocketManager: webSocketManager)
     }
     
     class Coordinator: NSObject, ARSCNViewDelegate {
         var parent: ARViewContainer
         let audioManager: SpatialAudioManager
         let webSocketManager: WebSocketManager // NEW
+//        let ocrWebSocketManager: OCRWebSocketManager // NEW
+//        let voiceViewModel: VoiceViewModel // NEW
 
         private let feedbackGenerator = UIImpactFeedbackGenerator(style: .heavy)
         
@@ -87,10 +94,16 @@ struct ARViewContainer: UIViewRepresentable {
         private var hasSetResolution: Bool = false
 
         // ⭐️ Modified init
-        init(_ parent: ARViewContainer, audioManager: SpatialAudioManager, webSocketManager: WebSocketManager) {
+        init(_ parent: ARViewContainer,
+             audioManager: SpatialAudioManager,
+             webSocketManager: WebSocketManager,
+             ) { // NEW
+            
             self.parent = parent
             self.audioManager = audioManager
-            self.webSocketManager = webSocketManager // NEW
+            self.webSocketManager = webSocketManager
+//            self.ocrWebSocketManager = ocrWebSocketManager // NEW
+//            self.voiceViewModel = voiceViewModel // NEW
             super.init()
         }
 
@@ -100,6 +113,9 @@ struct ARViewContainer: UIViewRepresentable {
                   let frame = arView.session.currentFrame,
                   let pointOfView = arView.pointOfView // Camera node
             else { return }
+            
+            // --- NEW: Update VoiceViewModel with the latest frame ---
+            //self.voiceViewModel.latestPixelBuffer = frame.capturedImage
             
             // --- NEW: Update resolution binding (runs once) ---
             if !hasSetResolution, let format = arView.session.configuration?.videoFormat {
@@ -119,6 +135,10 @@ struct ARViewContainer: UIViewRepresentable {
             // handle throttling, dropping frames if the server is busy.
             if let frameData = self.jpegData(from: pixelBuffer) {
                 self.webSocketManager.sendFrame(frameData)
+                
+                // 2. Send to NEW OCR server
+//                let doOCR = (self.voiceViewModel.appState == .processing)
+//                self.ocrWebSocketManager.sendFrame(frameData, doOCR: doOCR)
             }
             // --- END SEND FRAME ---
             
