@@ -1,3 +1,5 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Jaehoonoo/EchoAI)
+
 # YOLO Streaming Demo (Server + Local Webcam Client + Browser Client)
 
 ## Overview
